@@ -1,0 +1,81 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+env/
+venv/
+fastenv/
+
+# Environment variables
+.env
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logs
+*.log
+*.pot
+
+# Database files
+*.sqlite3
+*.db
+
+# IDE specific files
+.vscode/
+.idea/
+
+# Docker related
+*.log
+docker-compose.override.yml
+docker-compose.yml
+.dockerignore
+
+# Test reports
+coverage/
+*.cover
+htmlcov/
+nosetests.xml
+coverage.xml
+*.coveragerc
+*.spec
+
+
+
+# Windows files
+Thumbs.db
+Desktop.ini
+
+# PyInstaller
+# Usually these files are written by a Python script from a template
+*.manifest
+*.spec
+
+# Pyre type checker
+.pyre/
+
+# mypy
+.mypy_cache/
+dmypy.json
+dmypy.sock

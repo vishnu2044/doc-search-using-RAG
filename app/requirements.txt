@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pyJWT
+python-decouple
+sqlite3
+sqlalchemy
