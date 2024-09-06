@@ -29,6 +29,7 @@ def inspect_document(doc):
         print("Not a Document instance.")
 
 
+
 # Define Qdrant settings
 class QdrantDB:
     def __init__(self):
@@ -83,6 +84,29 @@ class QdrantDB:
             print(f"Error creating collection in Qdrant: {e}")
             raise e
         
+
+    def verify_storage(self, user_email, file_name):
+        print("Verifying stored documents...")
+
+        # You can also manually inspect the data in the collection
+        stored_data = self.client.scroll(
+            collection_name=self.collection_name,
+            limit=10,
+            # with_vector=True  # Ensure vectors are included
+        )
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        print("Stored data in Qdrant after upsert:", stored_data['vector'])
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        
+        documents = self.retrieve_documents(user_email, file_name)
+        
+        if documents:
+            print(f"Documents retrieved successfully for {user_email} and {file_name}.")
+            return documents
+        else:
+            print(f"No documents found for {user_email} and {file_name}.")
+            return None
+
     def store_documents(self, texts, user_email, file_name):
         try:
             documents_with_metadata = []
@@ -105,7 +129,7 @@ class QdrantDB:
                         print("get_text method found:", text)
                     else:
                         print("No recognizable text attribute or method found.")
-                        text = str(doc)  # Fallback to string conversion
+                        text = str(doc)  
                 elif isinstance(doc, str):
                     text = doc
                     print("String detected:", type(text))
@@ -138,19 +162,24 @@ class QdrantDB:
             ids = [i for i in range(len(documents_with_metadata))]
             vectors = [doc['embedding'] for doc in documents_with_metadata]
             payloads = [doc['metadata'] for doc in documents_with_metadata]
-            print("Vector and payload and ids setup correct here ::: >>>>>>><<<<<<<<<<<<<<<<<")
+            print("Vector and payload and ids setup correct here :::,  >>>>>>><<<<<<<<<<<<<<<<<", vectors)
 
             try:
-                self.client.upsert(
+                upsert_response =  self.client.upsert(
                     collection_name=self.collection_name,
-                    points=[{
+                    points=[
+                        {
                         'id': id_,
                         'vector': vector,
                         'payload': payload
                     } for id_, vector, payload in zip(ids, vectors, payloads)]
                 )
+                # self.verify_storage(user_email,file_name)
                 print("::::::::::::::::::::::::::::::::::::::::::::::::")
+                print("::::::::::::::::::::::::::::::::::::::::::::::::")
+                print("Upsert Response :::::::", upsert_response)
                 print(f"Documents successfully stored in collection '{self.collection_name}'")
+                # print("vector :: ", vectors)
                 print("::::::::::::::::::::::::::::::::::::::::::::::::")
             except Exception as e:
                 print(f"Error storing documents in Qdrant: {e}")
@@ -164,28 +193,36 @@ class QdrantDB:
         try:
             print("Query is working ::::::::::::")
             query_text = f"{user_email} {file_name}"
-            query_vector = self.embeddings.embed_query(query_text)
+            query_vector = self.embeddings.embed_query("vishnu")
 
             # Define the query filter for matching metadata fields
             query_filter = {
                 "must": [
-                    {"key": "email", "match": {"match_text": user_email}},  # Use match_text for string matching
-                    {"key": "file_name", "match": {"match_text": file_name}}  # Use match_text for string matching
+                    {"key": "email", "match": {"value": user_email}},
+                    {"key": "file_name", "match": {"value": file_name}}
                 ]
             }
+
             print("Query data :::::::", query_filter)
-            print("Query data :::::::", query_filter)
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            print("Colllection name ::::::", self.collection_name)
+
+            stored_data = self.client.scroll(
+                collection_name=self.collection_name,
+                limit=10  # Fetch 10 stored points
+            )
+            print("Stored data in Qdrant:", stored_data)
+
 
             # Perform the query with a filter
             try:
                 response = self.client.search(
                     collection_name=self.collection_name,
                     query_vector=query_vector,
-                    query_filter=query_filter,  # Use 'query_filter' instead of 'filter'
+                    query_filter=query_filter,
+                    limit=10  # Adjust this as needed
                 )
+                print("response get successfully !!!!!!!")
+
             except Exception as e:
                 print("Exception error, ::::::", e)
                 raise e

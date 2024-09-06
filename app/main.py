@@ -61,7 +61,7 @@ async def upload_file(file: UploadFile = File(...), user_email: str = Depends(ge
 async def doc_q_a(file_name: str = Query(...)):
     print("The function is started to working :::::::::::::::::::::::::::::::::::::")
     # user_email = get_current_user(authorization)  
-    user_email = 'vishnu@gmail.com'
+    user_email = 'hari@example.com'
     if not file_name or not user_email:
         raise HTTPException(status_code=400, detail="file_name and user_email are required.")
 
