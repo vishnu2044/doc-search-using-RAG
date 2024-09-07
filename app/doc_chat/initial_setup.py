@@ -2,8 +2,8 @@ import os
 from decouple import config
 from langchain.document_loaders import UnstructuredFileLoader
 from langchain_text_splitters import CharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_chroma import Chroma  # Ensure you're using the updated import
 from langchain_groq import ChatGroq
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains import RetrievalQA
@@ -24,9 +24,11 @@ def process_document(file_path: str, user_email: str, file_name:str):
         document = loader.load()
         print("User email :::", user_email)
         print("file name :::", file_name)
+        print("docs moves into text spliting ::::::::::::::::::::::")
         texts = text_split_to_chunks(document)
+        print("Texts length :::", len(texts))
 
-        move_into_qdrant_db(texts, user_email, file_name)
+        # move_into_qdrant_db(texts, user_email, file_name)
         return {"Message": "document processed Successfully!"}
 
     except Exception as e:
@@ -46,6 +48,7 @@ def text_split_to_chunks(documents):
     print("type of the text ::", type(texts))
     print("length of the texts ::", len(texts))
     print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    move_into_chroma_db(texts)
 
     return texts
 
@@ -70,9 +73,66 @@ def move_into_chroma_db(texts):
         embedding= embeddings,
         persist_directory= persistant_directory
     )
+
     print("its completed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    print("Vector db ::", vectordb)
-    doc_retriver(vectordb)
+
+    # print("Vector db ::", vectordb)
+    # query = "tell me about vishnu narayanan"
+    # # load_and_query_chroma_db(query)
+
+    # doc_retriver(vectordb, query)
+
+
+def load_and_query_chroma_db(query, persist_directory='doc_db'):
+    print("Load and query started to working fine :::::::::::::::::::::::::::::::::::::::")
+    print("Entered query ::::::::", query)
+    
+    # Explicitly pass the model name to avoid the deprecation warning
+    try:
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+        print("Embedding model loaded !!")
+    except Exception as e:
+        print(f"error:::::::: {e} ")
+    
+    try:
+
+        # Load the existing Chroma database
+        vectordb = Chroma(
+            embedding_function=embeddings,
+            persist_directory=persist_directory
+        )
+        response  = doc_retriver(vectordb, query)
+        return response
+    except Exception as e:
+        print(f"error:::::::: {e} ")
+    
+
+    
+    # Convert the query into an embedding
+    # try:
+    #     query_embedding = embeddings.embed_query(query)
+    #     print("Query embedding created: ", query_embedding)
+    # except Exception as e:
+    #     print(f"Error during query embedding creation: {e}")
+    
+    # try:
+    #     print(f"Query embedding type: {type(query_embedding)}, embedding content: {query_embedding}")
+    #     # Search the vector database for the most relevant document(s) based on the query embedding
+    #     results = vectordb.similarity_search(query_embedding, k=1)  # k=1 returns the top match
+    #     print(f"Results: {results}")
+    # except Exception as e:
+    #     print(f"Error during similarity search: {e}")      
+    
+    # # Print the most relevant document or the answer
+    # try:
+    #     if results:
+    #         print("Relevant document found:")
+    #         for result in results:
+    #             print(result.page_content)  # This is where your document content is stored
+    #     else:
+    #         print("No relevant documents found.")
+    # except Exception as e:
+    #     print(f"error from print results:::::::: {e} ")
 
 
 
@@ -81,7 +141,10 @@ def move_into_chroma_db(texts):
 
 
 
-def doc_retriver(vectordb):
+
+
+
+def doc_retriver(vectordb, query):
     # Convert vectordb into a retriever
     retriever = vectordb.as_retriever()
 
@@ -117,10 +180,18 @@ def doc_retriver(vectordb):
     )
 
     # Define the query
-    query = "talk me about vishnu's work experience?"
+    # query = "talk me about vishnu's work experience?"
 
     # Invoke the chain with the query
     response = qa_chain({"query": query})
 
-    print("QA chaining is completed !!!!!!!!")
-    print("Response:", response)
+    extracted_query = response.get("query")
+    extracted_result = response.get("result")
+
+    # Print only the query and result
+    print(f"Query: {extracted_query}")
+    print(f"Result: {extracted_result}")
+    return ({
+        "Query": extracted_query,
+        "Result": extracted_result
+        })

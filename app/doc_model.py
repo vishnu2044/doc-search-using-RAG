@@ -8,6 +8,7 @@ from langchain.vectorstores import Qdrant as QdrantVectorStore
 from langchain_core.documents import Document
 
 
+
 # Rename your custom Document class to avoid conflict
 class MyDocument:
     def __init__(self, content):
@@ -95,7 +96,7 @@ class QdrantDB:
             # with_vector=True  # Ensure vectors are included
         )
         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        print("Stored data in Qdrant after upsert:", stored_data['vector'])
+        print("Stored data in Qdrant after upsert:", stored_data)
         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         
         documents = self.retrieve_documents(user_email, file_name)
@@ -114,25 +115,10 @@ class QdrantDB:
             print("User email ::", user_email)
 
             for doc in texts:
-                print("Type of doc:", type(doc))
-
-                # Inspect the document
-                inspect_document(doc)
-
                 if isinstance(doc, Document):
-                    print("Document class detected.")
-                    if hasattr(doc, 'content'):
-                        text = doc.content
-                        print("Content attribute found:", text)
-                    elif hasattr(doc, 'get_text'):
-                        text = doc.get_text()
-                        print("get_text method found:", text)
-                    else:
-                        print("No recognizable text attribute or method found.")
-                        text = str(doc)  
+                    text = getattr(doc, 'content', None) or getattr(doc, 'get_text', lambda: str(doc))()
                 elif isinstance(doc, str):
                     text = doc
-                    print("String detected:", type(text))
                 else:
                     raise TypeError(f"Expected text to be a string or Document, got {type(doc)}")
 
@@ -141,9 +127,8 @@ class QdrantDB:
                 except Exception as e:
                     print(f"Issue on setting embedding query: {e}")
                     raise e
-
-                # print("Embedding vector ::::::", embedding_vector)
-                print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+                
+                print("Embedding vector ::::::::::", embedding_vector)
 
                 if not isinstance(embedding_vector, (list, tuple)):
                     raise TypeError("Embedding vector is not of type list or tuple")
@@ -155,45 +140,51 @@ class QdrantDB:
                     'metadata': {
                         'email': user_email,
                         'file_name': file_name
-                        }
+                    }
                 })
 
-            print("Adding document with metadata works fine >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            ids = [i for i in range(len(documents_with_metadata))]
+                
+
+            ids = list(range(len(documents_with_metadata)))
             vectors = [doc['embedding'] for doc in documents_with_metadata]
             payloads = [doc['metadata'] for doc in documents_with_metadata]
-            print("Vector and payload and ids setup correct here :::,  >>>>>>><<<<<<<<<<<<<<<<<", vectors)
 
-            try:
-                upsert_response =  self.client.upsert(
-                    collection_name=self.collection_name,
-                    points=[
-                        {
-                        'id': id_,
-                        'vector': vector,
-                        'payload': payload
-                    } for id_, vector, payload in zip(ids, vectors, payloads)]
-                )
-                # self.verify_storage(user_email,file_name)
-                print("::::::::::::::::::::::::::::::::::::::::::::::::")
-                print("::::::::::::::::::::::::::::::::::::::::::::::::")
+            print("Preparing to upsert data:")
+            for point in [
+                {'id': id_, 'vector': vector, 'payload': payload}
+                for id_, vector, payload in zip(ids, vectors, payloads)
+            ]:
+                print(point)
+
+            try:   
+                upsert_response = self.client.upsert(        
+                    collection_name=self.collection_name,        
+                    points=[            
+                        {                
+                            'id': id_,                
+                            'vector': vector,                
+                            'payload': payload            
+                            } for id_, vector, payload in zip(ids, vectors, payloads)]   
+                )    
                 print("Upsert Response :::::::", upsert_response)
-                print(f"Documents successfully stored in collection '{self.collection_name}'")
-                # print("vector :: ", vectors)
-                print("::::::::::::::::::::::::::::::::::::::::::::::::")
-            except Exception as e:
-                print(f"Error storing documents in Qdrant: {e}")
+                self.verify_storage(user_email, file_name)
+            except Exception as e:    
+                print(f"Error storing documents in Qdrant: {e}")    
                 raise e
+
+            
+
         except Exception as e:
             print(f"Error in store_documents function: {e}")
             raise e
+
         
 
     def retrieve_documents(self, user_email, file_name):
         try:
             print("Query is working ::::::::::::")
             query_text = f"{user_email} {file_name}"
-            query_vector = self.embeddings.embed_query("vishnu")
+            query_vector = self.embeddings.embed_query("vishnu")  # Ensure this is the intended query vector
 
             # Define the query filter for matching metadata fields
             query_filter = {
@@ -204,14 +195,14 @@ class QdrantDB:
             }
 
             print("Query data :::::::", query_filter)
-            print("Colllection name ::::::", self.collection_name)
+            print("Collection name ::::::", self.collection_name)
 
+            # Scroll through stored data
             stored_data = self.client.scroll(
                 collection_name=self.collection_name,
-                limit=10  # Fetch 10 stored points
+                limit=100  # Fetch a larger number to verify all data
             )
             print("Stored data in Qdrant:", stored_data)
-
 
             # Perform the query with a filter
             try:
@@ -221,13 +212,10 @@ class QdrantDB:
                     query_filter=query_filter,
                     limit=10  # Adjust this as needed
                 )
-                print("response get successfully !!!!!!!")
-
+                print("Query response ::::", response)
             except Exception as e:
                 print("Exception error, ::::::", e)
                 raise e
-
-            print("Query response ::::", response)
 
             # Extract and return the results
             results = response['result']['hits']
@@ -237,6 +225,7 @@ class QdrantDB:
         except Exception as e:
             print(f"Error retrieving documents: {e}")
             raise e
+
 
 
 
