@@ -1,9 +1,9 @@
-from fastapi import Header, HTTPException, Depends
+from fastapi import Header, HTTPException
 from auth.jwt_handler import decodeJWT
 
 def get_current_user(authorization: str = Header(...)):
-    # Extract the token from the Authorization header
-    token = authorization.split(" ")[1]  # Assuming the header is in the format "Bearer <token>"
+    
+    token = authorization.split(" ")[1] 
     decoded_token = decodeJWT(token)
     if isinstance(decoded_token, dict) and 'userId' in decoded_token:
         return decoded_token['userId']

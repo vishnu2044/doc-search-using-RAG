@@ -3,14 +3,14 @@ from decouple import config
 from langchain.document_loaders import UnstructuredFileLoader
 from langchain_text_splitters import CharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
-from langchain_chroma import Chroma  # Ensure you're using the updated import
+from langchain_chroma import Chroma  
 from langchain_groq import ChatGroq
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains import RetrievalQA
 
-from doc_model import move_into_qdrant_db, get_doc_details_from_qdrant_db
-from dependancies import get_current_user
-from fastapi import APIRouter, Depends, HTTPException
+from doc_model import get_doc_details_from_qdrant_db
+
+from fastapi import  HTTPException
 
 
 
@@ -47,17 +47,13 @@ def text_split_to_chunks(documents):
     print("From :: Text split to chunks")
     print("type of the text ::", type(texts))
     print("length of the texts ::", len(texts))
+    print("chunked texts ::::", texts)
     print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     move_into_chroma_db(texts)
 
     return texts
 
-#  here will be get the stored data according to the user email and file name
-def get_chunks_from_qdrant(user_email, file_name):
-    print("User email::::::", user_email)
-    print("file_name::::::", file_name)
-    ar = get_doc_details_from_qdrant_db(user_email, file_name)
-    print("retrieved data in initial setup file :::::::", ar)
+
 
 
 
@@ -74,20 +70,15 @@ def move_into_chroma_db(texts):
         persist_directory= persistant_directory
     )
 
-    print("its completed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("data stored in the chroma DB !!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
-    # print("Vector db ::", vectordb)
-    # query = "tell me about vishnu narayanan"
-    # # load_and_query_chroma_db(query)
-
-    # doc_retriver(vectordb, query)
 
 
 def load_and_query_chroma_db(query, persist_directory='doc_db'):
     print("Load and query started to working fine :::::::::::::::::::::::::::::::::::::::")
     print("Entered query ::::::::", query)
     
-    # Explicitly pass the model name to avoid the deprecation warning
+
     try:
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
         print("Embedding model loaded !!")
@@ -95,8 +86,6 @@ def load_and_query_chroma_db(query, persist_directory='doc_db'):
         print(f"error:::::::: {e} ")
     
     try:
-
-        # Load the existing Chroma database
         vectordb = Chroma(
             embedding_function=embeddings,
             persist_directory=persist_directory
@@ -107,55 +96,18 @@ def load_and_query_chroma_db(query, persist_directory='doc_db'):
         print(f"error:::::::: {e} ")
     
 
-    
-    # Convert the query into an embedding
-    # try:
-    #     query_embedding = embeddings.embed_query(query)
-    #     print("Query embedding created: ", query_embedding)
-    # except Exception as e:
-    #     print(f"Error during query embedding creation: {e}")
-    
-    # try:
-    #     print(f"Query embedding type: {type(query_embedding)}, embedding content: {query_embedding}")
-    #     # Search the vector database for the most relevant document(s) based on the query embedding
-    #     results = vectordb.similarity_search(query_embedding, k=1)  # k=1 returns the top match
-    #     print(f"Results: {results}")
-    # except Exception as e:
-    #     print(f"Error during similarity search: {e}")      
-    
-    # # Print the most relevant document or the answer
-    # try:
-    #     if results:
-    #         print("Relevant document found:")
-    #         for result in results:
-    #             print(result.page_content)  # This is where your document content is stored
-    #     else:
-    #         print("No relevant documents found.")
-    # except Exception as e:
-    #     print(f"error from print results:::::::: {e} ")
-
-
-
-
-
-
-
-
-
-
 
 def doc_retriver(vectordb, query):
-    # Convert vectordb into a retriever
     retriever = vectordb.as_retriever()
 
-    # Initialize the language model
+    # language model
     llm = ChatGroq(
         model='llama-3.1-70b-versatile',
         temperature=0,
         groq_api_key=config('GROQ_API_KEY')
     )
 
-    # Define the system prompt for the LLM
+
     system_prompt = (
         "Use the given context to answer the question. "
         "If you don't know the answer, say you don't know. "
@@ -163,7 +115,7 @@ def doc_retriver(vectordb, query):
         "Context: {context}"
     )
 
-    # Create a prompt template
+    # prompt template
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system_prompt),
@@ -171,7 +123,7 @@ def doc_retriver(vectordb, query):
         ]
     )
 
-    # Use RetrievalQA chain  mmr mar
+    # Use RetrievalQA chain
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
@@ -179,19 +131,133 @@ def doc_retriver(vectordb, query):
         return_source_documents=True
     )
 
-    # Define the query
-    # query = "talk me about vishnu's work experience?"
-
-    # Invoke the chain with the query
     response = qa_chain({"query": query})
 
     extracted_query = response.get("query")
     extracted_result = response.get("result")
 
-    # Print only the query and result
-    print(f"Query: {extracted_query}")
-    print(f"Result: {extracted_result}")
+
+    print(f"Query:::: {extracted_query}")
+    print(f"Result:::: {extracted_result}")
+
     return ({
         "Query": extracted_query,
         "Result": extracted_result
         })
+
+
+
+
+
+
+
+
+
+
+
+#  here will be get the stored data according to the user email and file name
+def get_chunks_from_qdrant(user_email, file_name):
+    print("User email::::::", user_email)
+    print("file_name::::::", file_name)
+    ar = get_doc_details_from_qdrant_db(user_email, file_name)
+    print("retrieved data in initial setup file :::::::", ar)
+
+
+
+
+
+
+
+
+
+
+
+
+# # Define a function to load and query a Chroma vector database
+# def load_and_query_chroma_db(query, persist_directory='doc_db'):
+#     # Print a message indicating the start of the load and query process
+#     print("Load and query started to working fine :::::::::::::::::::::::::::::::::::::::")
+#     # Print the query being used
+#     print("Entered query ::::::::", query)
+    
+#     # Try to load the HuggingFaceEmbeddings model
+#     try:
+#         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+#         # Print a message indicating that the embedding model has been loaded successfully
+#         print("Embedding model loaded !!")
+#     except Exception as e:
+#         # Print any errors encountered while loading the embedding model
+#         print(f"error:::::::: {e} ")
+    
+#     # Try to load the Chroma vector database and query it
+#     try:
+#         # Initialize Chroma with the embedding function and persist directory
+#         vectordb = Chroma(
+#             embedding_function=embeddings,
+#             persist_directory=persist_directory
+#         )
+#         # Retrieve and process documents based on the query
+#         response = doc_retriver(vectordb, query)
+#         # Return the response obtained from the document retriever
+#         return response
+#     except Exception as e:
+#         # Print any errors encountered while loading the vector database or querying it
+#         print(f"error:::::::: {e} ")
+
+
+
+# # Define a function to retrieve documents based on a query
+# def doc_retriver(vectordb, query):
+#     # Convert the vector database into a retriever object
+#     retriever = vectordb.as_retriever()
+
+#     # Initialize the language model with specified parameters
+#     llm = ChatGroq(
+#         model='llama-3.1-70b-versatile',  # Model to use for language processing
+#         temperature=0,  # Temperature setting for model responses
+#         groq_api_key=config('GROQ_API_KEY')  # API key for accessing the Groq service
+#     )
+
+#     # Define a system prompt template for generating responses
+#     system_prompt = (
+#         "Use the given context to answer the question. "
+#         "If you don't know the answer, say you don't know. "
+#         "Use three sentences maximum and keep the answer concise. "
+#         "Context: {context}"
+#     )
+
+#     # Create a prompt template for the ChatGroq model
+#     prompt = ChatPromptTemplate.from_messages(
+#         [
+#             ("system", system_prompt),  # System message defining the prompt behavior
+#             ("human", "{query}")  # Human message placeholder for the query
+#         ]
+#     )
+
+#     # Create a RetrievalQA chain object to handle the querying process
+#     qa_chain = RetrievalQA.from_chain_type(
+#         llm=llm,  # Language model to use for answering
+#         chain_type="stuff",  # Chain type for processing the query
+#         retriever=retriever,  # Document retriever to get relevant documents
+#         return_source_documents=True  # Return source documents along with the answer
+#     )
+
+#     # Execute the QA chain with the provided query
+#     response = qa_chain({"query": query})
+
+#     # Extract the query and result from the response
+#     extracted_query = response.get("query")
+#     extracted_result = response.get("result")
+
+#     # Print the extracted query and result
+#     print(f"Query:::: {extracted_query}")
+#     print(f"Result:::: {extracted_result}")
+
+#     # Return a dictionary containing the query and result
+#     return ({
+#         "Query": extracted_query,
+#         "Result": extracted_result
+#     })
+
+
+

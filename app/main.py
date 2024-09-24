@@ -1,13 +1,11 @@
-from fastapi import FastAPI, HTTPException, Depends
+import os
+from fastapi import FastAPI, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from model import User, UserSchema, UserLoginSchema, SessionLocal
 from auth.jwt_handler import signJWT
 from fastapi import FastAPI, File, UploadFile
 from doc_chat.initial_setup import process_document
 from dependancies import get_current_user
-
-from fastapi import HTTPException, Query
-import os
 from doc_chat.initial_setup import load_and_query_chroma_db
 from starlette.middleware.cors import CORSMiddleware
 
